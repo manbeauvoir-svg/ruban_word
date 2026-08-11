@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Le Ruban de Word - Interactif</title>
+<style>
+  :root{
+    --blue:#2e7dd6;
+    --blue-dark:#1c5aa8;
+    --green:#3aa876;
+    --bg:#f4f7fb;
+    --card:#ffffff;
+    --text:#22314a;
+    --muted:#5c6b82;
+    --border:#dbe4f0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Segoe UI",Arial,sans-serif;
+    background:linear-gradient(160deg,#eef3fb,#e3edf9);
+    color:var(--text);
+    padding:30px 16px 60px;
+  }
+  .wrap{max-width:1000px;margin:0 auto;}
+  h1{
+    text-align:center;
+    font-size:26px;
+    color:var(--blue-dark);
+    margin-bottom:4px;
+  }
+  .subtitle{
+    text-align:center;
+    color:var(--muted);
+    margin-bottom:26px;
+    font-size:15px;
+  }
+
+  /* Fenêtre Word simulée */
+  .word-window{
+    background:var(--card);
+    border-radius:10px;
+    box-shadow:0 12px 30px rgba(30,60,110,0.15);
+    overflow:hidden;
+    border:1px solid var(--border);
+  }
+  .titlebar{
+    background:var(--blue-dark);
+    color:#fff;
+    font-size:13px;
+    padding:8px 14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .titlebar .dot{width:10px;height:10px;border-radius:50%;}
+  .titlebar .dot.r{background:#ff5f57;}
+  .titlebar .dot.y{background:#febc2e;}
+  .titlebar .dot.g{background:#28c840;}
+  .titlebar span.name{margin-left:8px;opacity:0.9;}
+
+  /* Onglets */
+  .tabs{
+    display:flex;
+    flex-wrap:wrap;
+    background:#fbfcfe;
+    border-bottom:1px solid var(--border);
+    padding:0 8px;
+  }
+  .tab{
+    padding:11px 16px;
+    font-size:14px;
+    cursor:pointer;
+    color:var(--muted);
+    border-bottom:3px solid transparent;
+    transition:.15s;
+    user-select:none;
+    white-space:nowrap;
+  }
+  .tab:hover{color:var(--blue-dark); background:#eef4fc;}
+  .tab.active{
+    color:var(--blue-dark);
+    font-weight:600;
+    border-bottom:3px solid var(--blue);
+    background:#eef4fc;
+  }
+
+  /* Ruban */
+  .ribbon{
+    background:#f7f9fc;
+    padding:14px 18px;
+    display:flex;
+    gap:0;
+    flex-wrap:wrap;
+    min-height:120px;
+  }
+  .group{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:6px 16px;
+    border-right:1px solid var(--border);
+    min-width:120px;
+  }
+  .group:last-child{border-right:none;}
+  .group-tools{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+    flex:1;
+  }
+  .tool{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    padding:6px 8px;
+    border-radius:6px;
+    cursor:pointer;
+    transition:.15s;
+    width:64px;
+  }
+  .tool:hover{background:#dceafd;}
+  .tool.selected{background:#c9e2ff; box-shadow:inset 0 0 0 1px var(--blue);}
+  .tool-icon{
+    width:26px;height:26px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;
+  }
+  .tool-label{
+    font-size:10.5px;
+    text-align:center;
+    color:var(--text);
+    line-height:1.15;
+  }
+  .group-name{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:6px;
+    text-align:center;
+  }
+
+  /* Explication */
+  .explain{
+    margin-top:22px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:20px 22px;
+    min-height:90px;
+    box-shadow:0 6px 18px rgba(30,60,110,0.08);
+  }
+  .explain h3{
+    margin:0 0 6px;
+    color:var(--blue-dark);
+    font-size:17px;
+  }
+  .explain p{
+    margin:0;
+    color:var(--muted);
+    font-size:14.5px;
+    line-height:1.5;
+  }
+  .explain .placeholder{
+    color:#9aa8bd;
+    font-style:italic;
+  }
+  .hint{
+    text-align:center;
+    margin-top:14px;
+    font-size:13px;
+    color:var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Le Ruban de Word</h1>
+  <p class="subtitle">Cliquez sur un onglet, puis sur un outil, pour voir son rôle.</p>
+
+  <div class="word-window">
+    <div class="titlebar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <span class="name">Document1 - Word</span>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="ribbon" id="ribbon"></div>
+  </div>
+
+  <div class="explain" id="explain">
+    <p class="placeholder">Sélectionnez un outil dans le ruban ci-dessus pour afficher son explication ici.</p>
+  </div>
+  <p class="hint">Astuce : chaque onglet regroupe les outils liés à une même tâche.</p>
+</div>
+
+<script>
+const DATA = {
+  "Fichier": {
+    icon:"📁",
+    groups:[
+      {name:"Gestion du document", tools:[
+        {icon:"🆕", label:"Nouveau", text:"Crée un document vierge ou à partir d'un modèle."},
+        {icon:"📂", label:"Ouvrir", text:"Ouvre un document déjà existant sur votre ordinateur ou en ligne."},
+        {icon:"💾", label:"Enregistrer", text:"Sauvegarde les modifications du document en cours."},
+        {icon:"🖨️", label:"Imprimer", text:"Lance l'impression et permet de régler la mise en page avant impression."},
+        {icon:"📤", label:"Exporter", text:"Convertit le document, par exemple en PDF."},
+        {icon:"🔗", label:"Partager", text:"Envoie ou partage le document avec d'autres personnes."},
+        {icon:"⚙️", label:"Options", text:"Accède aux réglages généraux de Word."}
+      ]}
+    ]
+  },
+  "Accueil": {
+    icon:"🏠",
+    groups:[
+      {name:"Presse-papiers", tools:[
+        {icon:"📋", label:"Coller", text:"Insère le contenu précédemment copié ou coupé."},
+        {icon:"✂️", label:"Couper", text:"Retire le texte sélectionné et le place dans le presse-papiers."},
+        {icon:"📄", label:"Copier", text:"Duplique le texte sélectionné sans le retirer du document."}
+      ]},
+      {name:"Police", tools:[
+        {icon:"𝐁", label:"Gras", text:"Met le texte sélectionné en gras."},
+        {icon:"𝐼", label:"Italique", text:"Met le texte sélectionné en italique."},
+        {icon:"U̲", label:"Souligné", text:"Souligne le texte sélectionné."},
+        {icon:"🎨", label:"Couleur", text:"Change la couleur du texte."}
+      ]},
+      {name:"Paragraphe", tools:[
+        {icon:"☰", label:"Alignement", text:"Aligne le texte à gauche, au centre, à droite ou justifié."},
+        {icon:"•≡", label:"Listes", text:"Crée des listes à puces ou numérotées."}
+      ]},
+      {name:"Styles", tools:[
+        {icon:"🖋️", label:"Styles", text:"Applique un style de mise en forme prédéfini (titre, sous-titre...)."}
+      ]}
+    ]
+  },
+  "Insertion": {
+    icon:"➕",
+    groups:[
+      {name:"Pages", tools:[
+        {icon:"📃", label:"Page de garde", text:"Ajoute une page de garde stylisée en début de document."},
+        {icon:"➕📄", label:"Page vierge", text:"Insère une nouvelle page blanche."}
+      ]},
+      {name:"Tableaux", tools:[
+        {icon:"▦", label:"Tableau", text:"Insère un tableau pour organiser des données."}
+      ]},
+      {name:"Illustrations", tools:[
+        {icon:"🖼️", label:"Images", text:"Insère une image depuis votre ordinateur ou en ligne."},
+        {icon:"🔺", label:"Formes", text:"Ajoute des formes géométriques (flèches, rectangles...)."}
+      ]},
+      {name:"Liens", tools:[
+        {icon:"🔗", label:"Lien hypertexte", text:"Insère un lien cliquable vers un site, un fichier ou un email."}
+      ]},
+      {name:"En-tête / pied de page", tools:[
+        {icon:"📑", label:"En-tête", text:"Ajoute un texte répété en haut de chaque page."},
+        {icon:"#️⃣", label:"N° de page", text:"Insère automatiquement la numérotation des pages."}
+      ]}
+    ]
+  },
+  "Mise en page": {
+    icon:"📐",
+    groups:[
+      {name:"Mise en page", tools:[
+        {icon:"↔️", label:"Marges", text:"Définit l'espace entre le texte et le bord de la page."},
+        {icon:"🔄", label:"Orientation", text:"Bascule la page en portrait ou en paysage."},
+        {icon:"📏", label:"Taille", text:"Choisit le format du papier (A4, Lettre...)."}
+      ]},
+      {name:"Arrière-plan de page", tools:[
+        {icon:"💧", label:"Filigrane", text:"Ajoute un texte ou logo semi-transparent en fond de page."},
+        {icon:"🎨", label:"Couleur de page", text:"Applique une couleur de fond à la page."},
+        {icon:"🖼️", label:"Bordures", text:"Ajoute un cadre autour de la page."}
+      ]},
+      {name:"Paragraphe", tools:[
+        {icon:"↹", label:"Retrait", text:"Décale le paragraphe par rapport à la marge."},
+        {icon:"↕️", label:"Espacement", text:"Ajuste l'espace avant/après les paragraphes."}
+      ]}
+    ]
+  },
+  "Références": {
+    icon:"📖",
+    groups:[
+      {name:"Table des matières", tools:[
+        {icon:"📑", label:"Sommaire", text:"Génère automatiquement une table des matières à partir des titres."}
+      ]},
+      {name:"Notes de bas de page", tools:[
+        {icon:"¹", label:"Note de bas de page", text:"Ajoute une remarque en bas de la page, reliée par un renvoi."}
+      ]},
+      {name:"Citations & bibliographie", tools:[
+        {icon:"❝", label:"Citation", text:"Insère une citation académique référencée."},
+        {icon:"📚", label:"Bibliographie", text:"Génère la liste des sources citées."}
+      ]},
+      {name:"Index", tools:[
+        {icon:"🔎", label:"Index", text:"Crée un index alphabétique des termes du document."}
+      ]}
+    ]
+  },
+  "Publipostage": {
+    icon:"✉️",
+    groups:[
+      {name:"Démarrer la fusion", tools:[
+        {icon:"✉️", label:"Fusion et publipostage", text:"Lance l'assistant pour créer des lettres/étiquettes personnalisées en masse."},
+        {icon:"📇", label:"Sélection destinataires", text:"Choisit la liste de contacts (Excel, contacts...) à utiliser."}
+      ]},
+      {name:"Champs", tools:[
+        {icon:"🏷️", label:"Insérer un champ", text:"Ajoute un champ variable (ex: {Nom}, {Adresse}) dans le document."}
+      ]},
+      {name:"Aperçu / Terminer", tools:[
+        {icon:"👁️", label:"Aperçu des résultats", text:"Affiche le document avec les vraies données d'un destinataire."},
+        {icon:"✅", label:"Terminer la fusion", text:"Génère tous les documents personnalisés ou lance l'impression/envoi."}
+      ]}
+    ]
+  },
+  "Révision": {
+    icon:"✔️",
+    groups:[
+      {name:"Vérification", tools:[
+        {icon:"🔤", label:"Orthographe", text:"Vérifie l'orthographe et la grammaire du document."}
+      ]},
+      {name:"Commentaires", tools:[
+        {icon:"💬", label:"Nouveau commentaire", text:"Ajoute une remarque visible en marge, sans modifier le texte."}
+      ]},
+      {name:"Suivi", tools:[
+        {icon:"✏️", label:"Suivi des modifications", text:"Enregistre chaque ajout/suppression pour relecture collaborative."}
+      ]},
+      {name:"Protéger", tools:[
+        {icon:"🔒", label:"Restreindre la modification", text:"Limite ce que les autres peuvent modifier dans le document."}
+      ]}
+    ]
+  },
+  "Affichage": {
+    icon:"👁️",
+    groups:[
+      {name:"Modes d'affichage", tools:[
+        {icon:"📄", label:"Mode Lecture", text:"Affiche le document en plein écran, optimisé pour la lecture."},
+        {icon:"🖨️", label:"Mode Page", text:"Montre le document tel qu'il sera imprimé."},
+        {icon:"🌐", label:"Mode Web", text:"Affiche le document comme une page web."}
+      ]},
+      {name:"Affichage", tools:[
+        {icon:"📏", label:"Règle", text:"Affiche/masque la règle graduée en haut du document."},
+        {icon:"▤", label:"Quadrillage", text:"Affiche une grille pour aligner précisément les éléments."},
+        {icon:"🧭", label:"Volet de navigation", text:"Ouvre un panneau pour naviguer entre les titres et pages."}
+      ]},
+      {name:"Zoom", tools:[
+        {icon:"🔍", label:"Zoom", text:"Agrandit ou réduit l'affichage du document."}
+      ]}
+    ]
+  }
+};
+
+const tabsEl = document.getElementById('tabs');
+const ribbonEl = document.getElementById('ribbon');
+const explainEl = document.getElementById('explain');
+
+let activeTab = "Fichier";
+let selectedTool = null;
+
+function renderTabs(){
+  tabsEl.innerHTML = '';
+  Object.keys(DATA).forEach(name=>{
+    const t = document.createElement('div');
+    t.className = 'tab' + (name===activeTab ? ' active' : '');
+    t.textContent = DATA[name].icon + '  ' + name;
+    t.onclick = ()=>{ activeTab = name; selectedTool=null; renderTabs(); renderRibbon(); resetExplain(); };
+    tabsEl.appendChild(t);
+  });
+}
+
+function renderRibbon(){
+  ribbonEl.innerHTML = '';
+  DATA[activeTab].groups.forEach(group=>{
+    const g = document.createElement('div');
+    g.className = 'group';
+    const toolsWrap = document.createElement('div');
+    toolsWrap.className = 'group-tools';
+    group.tools.forEach(tool=>{
+      const tEl = document.createElement('div');
+      tEl.className = 'tool';
+      tEl.innerHTML = `<div class="tool-icon">${tool.icon}</div><div class="tool-label">${tool.label}</div>`;
+      tEl.onclick = ()=>{
+        document.querySelectorAll('.tool').forEach(x=>x.classList.remove('selected'));
+        tEl.classList.add('selected');
+        showExplain(tool.label, tool.text);
+      };
+      toolsWrap.appendChild(tEl);
+    });
+    g.appendChild(toolsWrap);
+    const nameEl = document.createElement('div');
+    nameEl.className = 'group-name';
+    nameEl.textContent = group.name;
+    g.appendChild(nameEl);
+    ribbonEl.appendChild(g);
+  });
+}
+
+function showExplain(label, text){
+  explainEl.innerHTML = `<h3>${label}</h3><p>${text}</p>`;
+}
+function resetExplain(){
+  explainEl.innerHTML = `<p class="placeholder">Sélectionnez un outil dans le ruban ci-dessus pour afficher son explication ici.</p>`;
+}
+
+renderTabs();
+renderRibbon();
+</script>
+</body>
+</html>
